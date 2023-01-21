@@ -1,5 +1,7 @@
-from flask import Flask, render_template, request
+from flask import Flask, render_template, request, redirect, url_for, session
 from flask_mysqldb import MySQL
+import MySQLdb.cursors
+import re
 
 app = Flask(__name__)
 app.config['MYSQL_HOST'] = "localhost"
@@ -15,7 +17,7 @@ def index():
     return render_template('index.html')
 
 
-@app.route('/register', methods=('GET', 'POST'))
+@app.route('/register', methods=['GET', 'POST'])
 def register():
     if request.method == 'POST':
         username = request.form.get('uname')
@@ -24,10 +26,10 @@ def register():
         email = request.form.get('email')
         password = request.form.get('password')
         cur = mysql.connection.cursor()
-        querydata = 'insert into register values(username,email,password,firstname,lastname)'
-        insertedData = cur.execute(querydata)
+        cur.execute("INSERT INTO register values(%s,%s,%s,%s,%s)", (username, email, password, firstname, lastname))
+        mysql.connection.commit()
+        cur.close()
         print('data successfully executed')
-        mysql.close()
     return render_template('register.html')
 
 
@@ -39,9 +41,36 @@ def login():
 @app.route('/default')
 def home():
     cur = mysql.connection.cursor()
-    user = cur.execute("select * from register")
+    cur.execute("select * from register")
     items = cur.fetchall()
     return render_template('home1.html', items=items)
+
+
+@app.route('/dummy', methods=['GET', 'POST'], )
+def dummy():
+    print('email' in request.form)
+    if request.method == 'POST' and 'email' in request.form and 'password' in request.form:
+        print('email' in request.form)
+        email = request.form['email']
+        print(email)
+        password = request.form['password']
+        cur = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+        cur.execute("SELECT*FROM dummy where email=%s", (email,))
+        account = cur.fetchone()
+        print(account)
+        if account:
+            msg = 'Account already exists'
+            print(msg)
+        elif not email or not password:
+            msg = 'Fill out form'
+            print(msg)
+        else:
+            cur.execute("INSERT INTO dummy values(%s,%s)", (email, password))
+            mysql.connection.commit()
+            cur.close()
+            print("Successfully Inserted Data")
+    else:
+        return render_template('dummy.html')
 
 
 if __name__ == '__main__':
